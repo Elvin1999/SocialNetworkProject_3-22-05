@@ -42,5 +42,9 @@ namespace SocialNetworkProject_3_22_05.Hubs
             await Clients.Others.SendAsync("Disconnect", info);
         }
 
+        public async Task SendFollow(string id)
+        {
+            await Clients.User(id).SendAsync("ReceiveNotification");
+        }
     }
 }

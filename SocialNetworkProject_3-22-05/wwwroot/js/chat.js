@@ -31,3 +31,12 @@ connection.on("Disconnect", function (info) {
         element.style.display = "none";
     }, 5000);
 })
+
+connection.on("ReceiveNotification", function () {
+    GetMyRequests();
+    GetAllUsers();
+})
+
+async function SendFollowCall(id) {
+    await connection.invoke("SendFollow", id);
+}
