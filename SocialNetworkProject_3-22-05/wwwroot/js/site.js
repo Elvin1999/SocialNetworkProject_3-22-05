@@ -9,11 +9,13 @@ function GetAllUsers() {
                 let style = '';
                 let subContent = '';
                 if (data[i].hasRequestPending) {
-                    subContent = `<button class='btn btn-outline-secondary'>Already Sent</button>`;
+                    subContent = `<button class='btn btn-outline-secondary' onclick="TakeRequest('${data[i].id}')">Already Sent</button>`;
                 }
                 else {
                     if (data[i].isFriend) {
-                        subContent = `<button class='btn btn-outline-secondary'>UnFollow</button>`;
+                        subContent = `<button class='btn btn-outline-secondary' onclick="UnfollowRequest('${data[i].id}')">UnFollow</button>
+                        <a class='btn btn-outline-secondary m-2' href='/Home/GoChat/${data[i].id}'>Go Chat</a>`;
+
                     }
                     else {
                         subContent = `<button class='btn btn-outline-primary' onclick="SendFollow('${data[i].id}')">Follow</button>`;
@@ -47,6 +49,104 @@ function GetAllUsers() {
 
 GetAllUsers();
 GetMyRequests();
+
+function SendMessage(receiverId, senderId) {
+    let content = document.querySelector("#message-input");
+    let obj = {
+        receiverId: receiverId,
+        senderId: senderId,
+        content: content.value
+    };
+    console.log(obj);
+    $.ajax({
+        url: `/Home/AddMessage`,
+        method: "POST",
+        data: obj,
+        success: function (data) {
+            GetMessageCall(receiverId, senderId);
+            content.value = "";
+        }
+    })
+
+}
+
+
+function GetMessages(receiverId, senderId) {
+    $.ajax({
+        url: `/Home/GetAllMessages?receiverId=${receiverId}&senderId=${senderId}`,
+        method: "GET",
+        success: function (data) {
+            let content = "";
+            for (var i = 0; i < data.messages.length; i++) {
+                if (receiverId == data.currentUserId) {
+                    let item = `<section   style='display:flex;margin-top:25px;border:2px solid springgreen;
+margin-left:100px;border-radius:20px 0 0 20px;padding:20px;width:50%;'>
+                        <h5>
+                            ${data.messages[i].content}
+                            </h5>
+                            <p>
+                                ${data.messages[i].dateTime}
+                            </p>
+                        </section>`;
+                    content += item;
+                }
+                else {
+                    let item = `<section    style='display:flex;margin-top:25px;border:2px solid springgreen;
+margin-left:0px;border-radius:0 20px 20px 0;width:50%;padding:20px;'>
+                        <h5>
+                            ${data.messages[i].content}
+                            </h5>
+                            <p>
+                                ${data.messages[i].dateTime}
+                            </p>
+                        </section>`;
+                    content += item;
+                }
+            }
+            console.log(data);
+            $("#currentMessages").html(content);
+        }
+
+
+    })
+}
+
+function UnfollowRequest(id) {
+    const element = document.querySelector("#alert");
+    element.style.display = "none";
+    $.ajax({
+        url: `/Home/Unfollow?id=${id}`,
+        method: "DELETE",
+        success: function (data) {
+            element.style.display = "block";
+            element.innerHTML = "You unfollow your friend";
+            GetAllUsers();
+            SendFollowCall(id);
+            setTimeout(() => {
+                element.innerHTML = "";
+                element.style.display = "none";
+            }, 5000)
+        }
+    })
+}
+function TakeRequest(id) {
+    const element = document.querySelector("#alert");
+    element.style.display = "none";
+    $.ajax({
+        url: `/Home/TakeRequest?id=${id}`,
+        method: "DELETE",
+        success: function (data) {
+            element.style.display = "block";
+            element.innerHTML = "You removed follow request successfully";
+            GetAllUsers();
+            SendFollowCall(id);
+            setTimeout(() => {
+                element.innerHTML = "";
+                element.style.display = "none";
+            }, 5000)
+        }
+    })
+}
 
 function SendFollow(id) {
     const element = document.querySelector("#alert");

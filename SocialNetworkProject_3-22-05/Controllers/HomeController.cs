@@ -6,6 +6,7 @@ using SocialNetworkProject_3_22_05.Data;
 using SocialNetworkProject_3_22_05.Entities;
 using SocialNetworkProject_3_22_05.Models;
 using System.Diagnostics;
+using System.Reflection.Metadata.Ecma335;
 
 namespace SocialNetworkProject_3_22_05.Controllers
 {
@@ -53,6 +54,51 @@ namespace SocialNetworkProject_3_22_05.Controllers
                 .ToListAsync();
             return Ok(users);
         }
+
+        public async Task<IActionResult> GoChat(string id)
+        {
+            var user = await _userManager.GetUserAsync(HttpContext.User);
+            var chat = await _context.Chats.Include(nameof(Chat.Messages)).FirstOrDefaultAsync(c => c.SenderId == user.Id && c.ReceiverId == id ||
+            c.SenderId == id && c.ReceiverId == user.Id);
+
+            if (chat == null)
+            {
+                chat = new Chat
+                {
+                    ReceiverId = id,
+                    SenderId = user.Id,
+                    Messages = new List<Message>()
+                };
+
+                await _context.Chats.AddAsync(chat);
+                await _context.SaveChangesAsync();
+            }
+
+            var chats = _context.Chats.Include(nameof(Chat.Receiver)).Where(c => c.SenderId == user.Id || c.ReceiverId == user.Id);
+            var chatBlocks = from c in chats
+                             let receiver = (user.Id != c.ReceiverId) ? c.Receiver : _context.Users.FirstOrDefault(u => u.Id == c.SenderId)
+                             select new Chat
+                             {
+                                 Messages = c.Messages,
+                                 Id = c.Id,
+                                 SenderId = c.SenderId,
+                                 Receiver = receiver,
+                                 ReceiverId = receiver.Id,
+                             };
+
+            var result = chatBlocks.ToList().Where(c => c.ReceiverId != user.Id);
+
+            var model = new ChatViewModel
+            {
+                CurrentUserId = user.Id,
+                CurrentReceiver = id,
+                CurrentChat = chat,
+                Chats = result.Count() == 0 ? chatBlocks : result,
+            };
+
+            return View(model);
+        }
+
         [HttpDelete()]
         public async Task<IActionResult> DeleteRequest(int id)
         {
@@ -68,6 +114,32 @@ namespace SocialNetworkProject_3_22_05.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpDelete]
+        public async Task<IActionResult> TakeRequest(string id)
+        {
+            var current = await _userManager.GetUserAsync(HttpContext.User);
+            var request = await _context.FriendRequests.FirstOrDefaultAsync(r => r.SenderId == current.Id && r.ReceiverId == id);
+            if (request == null) return NotFound();
+            _context.FriendRequests.Remove(request);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpDelete]
+        public async Task<IActionResult> Unfollow(string id)
+        {
+            var current = await _userManager.GetUserAsync(HttpContext.User);
+            var friend = await _context.Friends.FirstOrDefaultAsync(f => f.OwnId == current.Id && f.YourFriendId == id ||
+            f.OwnId == id && f.YourFriendId == current.Id
+            );
+
+            if (friend == null) return NotFound();
+            _context.Friends.Remove(friend);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
         public async Task<IActionResult> DeclineRequest(int id, string senderId)
         {
             try
@@ -154,6 +226,37 @@ namespace SocialNetworkProject_3_22_05.Controllers
             var requests = _context.FriendRequests.Where(r => r.ReceiverId == current.Id);
             return Ok(requests);
         }
+
+        [HttpPost]
+        public async Task<IActionResult> AddMessage(MessageModel model)
+        {
+            var chat = await _context.Chats.FirstOrDefaultAsync(c => c.SenderId == model.SenderId && c.ReceiverId == model.ReceiverId
+            || c.SenderId == model.ReceiverId && c.ReceiverId == model.SenderId);
+            if (chat != null)
+            {
+                var message = new Message
+                {
+                    ChatId = chat.Id,
+                    Content = model.Content,
+                    DateTime = DateTime.Now,
+                    HasSeen = false,
+                    IsImage = false,
+                };
+                await _context.Messages.AddAsync(message);
+                await _context.SaveChangesAsync();
+                return Ok();
+            }
+            return NotFound();
+        }
+
+        public async Task<IActionResult> GetAllMessages(string receiverId,string senderId)
+        {
+            var chat = await _context.Chats.Include(nameof(Chat.Messages)).FirstOrDefaultAsync(c => c.SenderId == senderId && c.ReceiverId == receiverId
+            || c.SenderId == receiverId && c.ReceiverId == senderId);
+            var user = await _userManager.GetUserAsync(HttpContext.User);
+            return Ok(new { Messages = chat.Messages!=null?chat.Messages:new List<Message>(), CurrentUserId = user.Id });
+        }
+
         public IActionResult Privacy()
         {
             return View();

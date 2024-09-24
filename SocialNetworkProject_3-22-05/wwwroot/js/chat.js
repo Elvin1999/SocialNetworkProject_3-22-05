@@ -35,8 +35,18 @@ connection.on("Disconnect", function (info) {
 connection.on("ReceiveNotification", function () {
     GetMyRequests();
     GetAllUsers();
-})
+});
+
+async function GetMessageCall(receiverId, senderId) {
+    await connection.invoke("GetMessages", receiverId, senderId);
+}
+
 
 async function SendFollowCall(id) {
     await connection.invoke("SendFollow", id);
 }
+
+
+connection.on("ReceiveMessages", function (receiverId, senderId) {
+    GetMessages(receiverId, senderId);
+});
