@@ -37,8 +37,9 @@ connection.on("ReceiveNotification", function () {
     GetAllUsers();
 });
 
-async function GetMessageCall(receiverId, senderId) {
-    await connection.invoke("GetMessages", receiverId, senderId);
+async function GetMessageCall( receiverId, senderId) {
+
+    await connection.invoke("GetMessages",  receiverId, senderId);
 }
 
 
@@ -47,6 +48,6 @@ async function SendFollowCall(id) {
 }
 
 
-connection.on("ReceiveMessages", function (receiverId, senderId) {
-    GetMessages(receiverId, senderId);
+connection.on("ReceiveMessages", function ( receiverId, senderId) {
+        GetMessages(receiverId, senderId);
 });

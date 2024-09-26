@@ -14,7 +14,7 @@ function GetAllUsers() {
                 else {
                     if (data[i].isFriend) {
                         subContent = `<button class='btn btn-outline-secondary' onclick="UnfollowRequest('${data[i].id}')">UnFollow</button>
-                        <a class='btn btn-outline-secondary m-2' href='/Home/GoChat/${data[i].id}'>Go Chat</a>`;
+                        <a class='btn btn-outline-secondary m-2' href='/Home/GoChat/${data[i].id}' >Go Chat</a>`;
 
                     }
                     else {

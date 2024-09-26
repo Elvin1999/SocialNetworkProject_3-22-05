@@ -74,25 +74,48 @@ namespace SocialNetworkProject_3_22_05.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            var chats = _context.Chats.Include(nameof(Chat.Receiver)).Where(c => c.SenderId == user.Id || c.ReceiverId == user.Id);
+            var messages = chat.Messages;
+            if(messages.Any())
+            {
+                foreach (var item in messages)
+                {
+                    item.HasSeen = true;
+                    _context.Messages.Update(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            var chats = _context.Chats.Include(nameof(chat.Messages)).Include(nameof(Chat.Receiver)).Where(c => c.SenderId == user.Id || c.ReceiverId == user.Id);
             var chatBlocks = from c in chats
                              let receiver = (user.Id != c.ReceiverId) ? c.Receiver : _context.Users.FirstOrDefault(u => u.Id == c.SenderId)
-                             select new Chat
+                             select new ChatBlockViewModel
                              {
                                  Messages = c.Messages,
                                  Id = c.Id,
                                  SenderId = c.SenderId,
                                  Receiver = receiver,
                                  ReceiverId = receiver.Id,
+                                 UnReadMessageCount = c.Messages.Count(m => m.HasSeen == false)
                              };
 
             var result = chatBlocks.ToList().Where(c => c.ReceiverId != user.Id);
+
+            var currentChatBlock = new ChatBlockViewModel
+            {
+                Id = chat.Id,
+                Messages = messages,
+                Receiver = chat.Receiver,
+                ReceiverId = chat.ReceiverId,
+                SenderId = chat.SenderId,
+                UnReadMessageCount = chat.Messages.Count(m => m.HasSeen == false)
+            };
 
             var model = new ChatViewModel
             {
                 CurrentUserId = user.Id,
                 CurrentReceiver = id,
-                CurrentChat = chat,
+                CurrentChat = currentChatBlock,
                 Chats = result.Count() == 0 ? chatBlocks : result,
             };
 
@@ -230,6 +253,7 @@ namespace SocialNetworkProject_3_22_05.Controllers
         [HttpPost]
         public async Task<IActionResult> AddMessage(MessageModel model)
         {
+            var current = await _userManager.GetUserAsync(HttpContext.User);
             var chat = await _context.Chats.FirstOrDefaultAsync(c => c.SenderId == model.SenderId && c.ReceiverId == model.ReceiverId
             || c.SenderId == model.ReceiverId && c.ReceiverId == model.SenderId);
             if (chat != null)
@@ -241,6 +265,7 @@ namespace SocialNetworkProject_3_22_05.Controllers
                     DateTime = DateTime.Now,
                     HasSeen = false,
                     IsImage = false,
+                    SenderId = current.Id
                 };
                 await _context.Messages.AddAsync(message);
                 await _context.SaveChangesAsync();
@@ -249,12 +274,13 @@ namespace SocialNetworkProject_3_22_05.Controllers
             return NotFound();
         }
 
-        public async Task<IActionResult> GetAllMessages(string receiverId,string senderId)
+        public async Task<IActionResult> GetAllMessages(string receiverId, string senderId)
         {
-            var chat = await _context.Chats.Include(nameof(Chat.Messages)).FirstOrDefaultAsync(c => c.SenderId == senderId && c.ReceiverId == receiverId
+            var chat = await _context.Chats.Include(c => c.Messages)
+                .FirstOrDefaultAsync(c => c.SenderId == senderId && c.ReceiverId == receiverId
             || c.SenderId == receiverId && c.ReceiverId == senderId);
             var user = await _userManager.GetUserAsync(HttpContext.User);
-            return Ok(new { Messages = chat.Messages!=null?chat.Messages:new List<Message>(), CurrentUserId = user.Id });
+            return Ok(new { Messages = chat.Messages != null ? chat.Messages : new List<Message>(), CurrentUserId = user.Id });
         }
 
         public IActionResult Privacy()

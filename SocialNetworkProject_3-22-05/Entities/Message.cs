@@ -9,5 +9,7 @@
         public bool HasSeen { get; set; }
         public int ChatId { get; set; }
         public virtual Chat? Chat { get; set; }
+        public string? SenderId { get; set; }
+        public virtual CustomIdentityUser? Sender { get; set; }
     }
 }
